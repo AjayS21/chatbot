@@ -1,0 +1,82 @@
+/**
+ * Prisma schema for persistence.
+ *
+ * Important decisions:
+ * - We use PostgreSQL as the primary database because it's the most likely production choice.
+ * - We model `channel` + `externalId` fields to support multiple providers (WhatsApp/Instagram/etc.)
+ *   without redesigning the core tables later.
+ */
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Conversation {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /**
+   * Channel identifier (e.g. "whatsapp", "instagram").
+   * We keep it as a string (instead of enum) to avoid migrations when adding new channels.
+   */
+  channel String
+
+  /**
+   * Provider-side conversation/thread identifier (if available).
+   * Not all channels expose this cleanly, so it's optional.
+   */
+  externalConversationId String?
+
+  /**
+   * Human-friendly label for operators/debugging. Optional.
+   */
+  title String?
+
+  messages Message[]
+
+  @@index([channel, createdAt])
+  @@unique([channel, externalConversationId], map: "conversation_channel_external_id_unique")
+}
+
+model Message {
+  id             String   @id @default(cuid())
+  createdAt      DateTime @default(now())
+
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  /**
+   * Direction is stored as a string for forward compatibility:
+   * - "inbound" (from user)
+   * - "outbound" (from our system)
+   */
+  direction String
+
+  /**
+   * Message body. For now, we store plain text.
+   * Later we can add rich content fields and/or a structured JSON payload.
+   */
+  content String
+
+  /**
+   * Provider-side message identifier (if available) for idempotency/deduplication.
+   */
+  externalMessageId String?
+
+  /**
+   * Extra provider metadata (webhook payload fragments, normalized fields, etc.).
+   * Postgres maps this to JSONB.
+   */
+  metadata Json?
+
+  @@index([conversationId, createdAt])
+  @@unique([conversationId, externalMessageId], map: "message_conversation_external_id_unique")
+}
+
+

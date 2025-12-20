@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: spur-postgres
+    environment:
+      POSTGRES_USER: spur
+      POSTGRES_PASSWORD: spur
+      POSTGRES_DB: spur_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - spur_postgres_data:/var/lib/postgresql/data
+
+volumes:
+  spur_postgres_data:
+
