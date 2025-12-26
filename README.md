@@ -21,6 +21,8 @@ This codebase is designed to make it obvious how additional channels (WhatsApp, 
 - **npm** 10+
 - **PostgreSQL** (or Docker Desktop for local Postgres via compose)
 
+Note (frontend deployment): the frontend uses **`@sveltejs/adapter-node`**, so production deployments run as a Node server (not static hosting).
+
 ## Running the apps
 
 Install dependencies (root workspace):
@@ -115,6 +117,79 @@ See `backend/ENV.example` for the full list.
   - Default: `http://localhost:3001`
 
 Why server-side: the browser never needs to know the backend origin, which simplifies deployment and future auth.
+
+## Deployment (recommended paths)
+
+This repo is designed to deploy as **two services**:
+- **Backend**: Fastify API (`/health`, `/chat/*`)
+- **Frontend**: SvelteKit Node server (serves UI + `/api/chat/*` proxy routes)
+
+### Option 1 — Deploy anywhere with Docker Compose (full stack)
+
+The file `docker-compose.full.yml` runs:
+- Postgres
+- Backend (auto-runs `prisma migrate deploy` on boot)
+- Frontend (server-side proxy points to the backend)
+
+1) Set your OpenAI key (required for real replies):
+
+```bash
+# Windows PowerShell
+$env:OPENAI_API_KEY="YOUR_KEY"
+```
+
+2) Start everything:
+
+```bash
+docker compose -f docker-compose.full.yml up -d --build
+```
+
+3) Verify:
+- Frontend: `http://localhost:3000`
+- Backend health: `http://localhost:3001/health`
+
+### Option 2 — Cloud deploy (Render / Railway / Fly / VPS)
+
+Deploy **backend** + **frontend** separately, then set these env vars:
+
+**Backend**
+- `DATABASE_URL` (managed Postgres connection string)
+- `OPENAI_API_KEY`
+- optional: `OPENAI_MODEL`, `LLM_TIMEOUT_MS`, `LLM_HISTORY_LIMIT`, `LLM_MAX_OUTPUT_TOKENS`
+
+**Backend release command (must run on deploy)**
+
+```bash
+npm run prisma:generate -w backend && npm run db:migrate:deploy -w backend
+```
+
+If your shell is **PowerShell**, use `;` instead of `&&`:
+
+```bash
+npm run prisma:generate -w backend; npm run db:migrate:deploy -w backend
+```
+
+**Backend start command**
+
+```bash
+npm run start -w backend
+```
+
+**Frontend**
+- `BACKEND_URL` = your backend base URL (example: `https://your-backend.example.com`)
+
+**Frontend build command**
+
+```bash
+npm run build -w frontend
+```
+
+**Frontend start command**
+
+```bash
+npm run start -w frontend
+```
+
 
 ## Architecture overview
 

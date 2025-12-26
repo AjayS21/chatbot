@@ -1,0 +1,50 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: spur-postgres
+    environment:
+      POSTGRES_USER: spur
+      POSTGRES_PASSWORD: spur
+      POSTGRES_DB: spur_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - spur_postgres_data:/var/lib/postgresql/data
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: spur-backend
+    environment:
+      HOST: 0.0.0.0
+      PORT: 3001
+      DATABASE_URL: postgresql://spur:spur@postgres:5432/spur_dev?schema=public
+      # Required to generate real replies:
+      # OPENAI_API_KEY: your_key_here
+      # Optional:
+      # OPENAI_MODEL: gpt-4o-mini
+    depends_on:
+      - postgres
+    ports:
+      - "3001:3001"
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    container_name: spur-frontend
+    environment:
+      # SvelteKit node server listens on PORT (defaults to 3000)
+      PORT: 3000
+      # Server-side proxy calls the backend via this URL:
+      BACKEND_URL: http://backend:3001
+    depends_on:
+      - backend
+    ports:
+      - "3000:3000"
+
+volumes:
+  spur_postgres_data:
+
+
