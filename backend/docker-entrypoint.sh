@@ -7,7 +7,7 @@ if [ -z "${DATABASE_URL:-}" ]; then
 fi
 
 echo "Running Prisma migrations..."
-./node_modules/.bin/prisma --schema ./backend/prisma/schema.prisma migrate deploy
+./node_modules/.bin/prisma migrate deploy --schema ./backend/prisma/schema.prisma
 
 echo "Starting backend..."
 exec node ./backend/dist/index.js
